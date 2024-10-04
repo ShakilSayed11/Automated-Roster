@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Automated Monthly Roster Generator</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <style>
+        .roster-table {
+            font-size: 0.8rem;
+        }
+        .roster-table th, .roster-table td {
+            padding: 0.5rem;
+            text-align: center;
+        }
+        .roster-table th {
+            background-color: #4a5568;
+            color: white;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .weekend {
+            background-color: #f3f4f6;
+        }
+        .editable:hover {
+            opacity: 0.8;
+            cursor: pointer;
+        }
+        .modal {
+            transition: opacity 0.25s ease;
+        }
+        body.modal-active {
+            overflow-x: hidden;
+            overflow-y: visible !important;
+        }
+        .status-P { background-color: #e6fffa; color: #047857; }
+        .status-WO { background-color: #eff6ff; color: #1e40af; }
+        .status-HD { background-color: #fef3c7; color: #92400e; }
+        .status-URL { background-color: #fee2e2; color: #b91c1c; }
+        .status-PL { background-color: #f0fdf4; color: #166534; }
+        .status-CO { background-color: #fdf2f8; color: #9d174d; }
+        .status-CL { background-color: #ecfdf5; color: #065f46; }
+        .status-SL { background-color: #fdf4ff; color: #86198f; }
+        .status-Attrit { background-color: #fef2f2; color: #991b1b; }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold mb-6 text-center text-gray-800">Enhanced Monthly Roster Generator</h1>
+        <button id="generateButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mb-6">
+            Generate Roster
+        </button>
+        <div class="overflow-x-auto bg-white shadow-md rounded">
+            <table id="rosterTable" class="roster-table min-w-full">
+                <thead>
+                    <tr>
+                        <th class="px-4 py-2">Emp ID</th>
+                        <th class="px-4 py-2">Department</th>
+                        <th class="px-4 py-2">Center</th>
+                        <th class="px-4 py-2">Designation</th>
+                        <th class="px-4 py-2">Respective Reporting</th>
+                        <th class="px-4 py-2">Emp Name</th>
+                        <th class="px-4 py-2">Present</th>
+                        <th class="px-4 py-2">HD</th>
+                        <th class="px-4 py-2">URL</th>
+                        <th class="px-4 py-2">PL</th>
+                        <th class="px-4 py-2">CO</th>
+                        <th class="px-4 py-2">CL</th>
+                        <th class="px-4 py-2">SL</th>
+                        <th class="px-4 py-2">WO</th>
+                        <th class="px-4 py-2">Attrit</th>
+                        <th class="px-4 py-2">PL%</th>
+                        <th class="px-4 py-2">UL%</th>
+                    </tr>
+                </thead>
+                <tbody id="rosterBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center">
+        <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-50"></div>
+        
+        <div class="modal-container bg-white w-11/12 md:max-w-md mx-auto rounded shadow-lg z-50 overflow-y-auto">
+            <div class="modal-content py-4 text-left px-6">
+                <div class="flex justify-between items-center pb-3">
+                    <p class="text-2xl font-bold" id="modalTitle">Update Attendance</p>
+                    <div class="modal-close cursor-pointer z-50">
+                        <svg class="fill-current text-black" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18">
+                            <path d="M14.53 4.53l-1.06-1.06L9 7.94 4.53 3.47 3.47 4.53 7.94 9l-4.47 4.47 1.06 1.06L9 10.06l4.47 4.47 1.06-1.06L10.06 9z"></path>
+                        </svg>
+                    </div>
+                </div>
+                <p id="modalInfo" class="mb-4"></p>
+                <div id="attendanceOptions" class="grid grid-cols-3 gap-2">
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+        const employees = [];
+        const departments = ['Pathways', 'Oxford Direct'];
+
+        for (let i = 1; i <= 50; i++) {
+            const dept = i <= 25 ? 'Pathways' : 'Oxford Direct';
+            employees.push({
+                id: `E${i.toString().padStart(4, '0')}`,
+                department: dept,
+                center: dept === 'Pathways' ? 'Center A' : 'Center B',
+                designation: `Role ${i}`,
+                reporting: 'Manager Name',
+                name: `Employee ${i}`
+            });
+        }
+
+        function generateRoster() {
+            const rosterBody = document.getElementById('rosterBody');
+            rosterBody.innerHTML = '';
+
+            const currentDate = new Date();
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            const headerRow = document.createElement('tr');
+            headerRow.innerHTML = '<th class="px-4 py-2" colspan="17"></th>';
+            for (let day = 1; day <= daysInMonth; day++) {
+                const date = new Date(year, month, day);
+                const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+                headerRow.innerHTML += `<th class="px-4 py-2 ${isWeekend ? 'weekend' : ''}">${day}</th>`;
+            }
+            rosterTable.querySelector('thead').appendChild(headerRow);
+
+            employees.forEach(employee => {
+                const row = document.createElement('tr');
+                const attendance = generateAttendance(employee, daysInMonth);
+                const summary = summarizeAttendance(attendance);
+
+                row.innerHTML = `
+                    <td class="border px-4 py-2">${employee.id}</td>
+                    <td class="border px-4 py-2">${employee.department}</td>
+                    <td class="border px-4 py-2">${employee.center}</td>
+                    <td class="border px-4 py-2">${employee.designation}</td>
+                    <td class="border px-4 py-2">${employee.reporting}</td>
+                    <td class="border px-4 py-2">${employee.name}</td>
+                    <td class="border px-4 py-2">${summary.present}</td>
+                    <td class="border px-4 py-2">${summary.hd}</td>
+                    <td class="border px-4 py-2">${summary.url}</td>
+                    <td class="border px-4 py-2">${summary.pl}</td>
+                    <td class="border px-4 py-2">${summary.co}</td>
+                    <td class="border px-4 py-2">${summary.cl}</td>
+                    <td class="border px-4 py-2">${summary.sl}</td>
+                    <td class="border px-4 py-2">${summary.wo}</td>
+                    <td class="border px-4 py-2">${summary.attrit}</td>
+                    <td class="border px-4 py-2">${summary.plPercentage.toFixed(2)}%</td>
+                    <td class="border px-4 py-2">${summary.ulPercentage.toFixed(2)}%</td>
+                `;
+
+                attendance.forEach(({ status, color }, index) => {
+                    const cell = document.createElement('td');
+                    cell.textContent = status;
+                    cell.classList.add('border', 'px-4', 'py-2', 'editable', color);
+                    cell.addEventListener('click', () => showAttendanceModal(cell, employee, index));
+                    const date = new Date(year, month, index + 1);
+                    if (date.getDay() === 0 || date.getDay() === 6) {
+                        cell.classList.add('weekend');
+                    }
+                    row.appendChild(cell);
+                });
+
+                rosterBody.appendChild(row);
+            });
+        }
+
+        function generateAttendance(employee, daysInMonth) {
+            const attendance = [];
+            const sundays = [];
+            let weekOffs = 0;
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const date = new Date(new Date().getFullYear(), new Date().getMonth(), day);
+                const dayOfWeek = date.getDay();
+
+                if (dayOfWeek === 0) {
+                    sundays.push(day);
+                }
+
+                if (employee.department === 'Pathways') {
+                    if (dayOfWeek === 0 && weekOffs < 6 && Math.random() < 0.7) {
+                        attendance.push('WO');
+                        weekOffs++;
+                    } else if (weekOffs < 6 && Math.random() < 0.1) {
+                        attendance.push('WO');
+                        weekOffs++;
+                    } else {
+                        attendance.push('P');
+                    }
+                } else if (employee.department === 'Oxford Direct') {
+                    if (dayOfWeek === 0 || (dayOfWeek === 6 && weekOffs < 6)) {
+                        attendance.push('WO');
+                        weekOffs++;
+                    } else {
+                        attendance.push('P');
+                    }
+                }
+            }
+
+            if (employee.department === 'Oxford Direct') {
+                if (sundays.length === 5) {
+                    const saturdayIndex = attendance.findIndex((status, index) => 
+                        new Date(new Date().getFullYear(), new Date().getMonth(), index + 1).getDay() === 6 && status === 'WO'
+                    );
+                    if (saturdayIndex !== -1) {
+                        attendance[saturdayIndex] = 'P';
+                    }
+                } else if (sundays.length === 4) {
+                    const saturdays = attendance.reduce((acc, status, index) => {
+                        if (new Date(new Date().getFullYear(), new Date().getMonth(), index + 1).getDay() === 6) {
+                            acc.push(index);
+                        }
+                        return acc;
+                    }, []);
+                    
+                    while (saturdays.length > 2) {
+                        const randomIndex = Math.floor(Math.random() * saturdays.length);
+                        attendance[saturdays[randomIndex]] = 'P';
+                        saturdays.splice(randomIndex, 1);
+                    }
+                }
+            }
+
+            return attendance.map(status => ({ status, color: `status-${status}` }));
+        }
+
+        function summarizeAttendance(attendance) {
+            const summary = {
+                present: 0, hd: 0, url: 0, pl: 0, co: 0, cl: 0, sl: 0, wo: 0, attrit: 0
+            };
+
+            attendance.forEach(({ status }) => {
+                switch(status) {
+                    case 'P': summary.present++; break;
+                    case 'WO': summary.wo++; break;
+                    case 'HD': summary.hd++; break;
+                    case 'URL': summary.url++; break;
+                    case 'PL': summary.pl++; break;
+                    case 'CO': summary.co++; break;
+                    case 'CL': summary.cl++; break;
+                    case 'SL': summary.sl++; break;
+                    case 'Attrit': summary.attrit++; break;
+                }
+            });
+
+            const workingDays = attendance.length - summary.wo;
+            summary.plPercentage = (summary.present / workingDays) * 100;
+            summary.ulPercentage = 100 - summary.plPercentage;
+
+            return summary;
+        }
+
+
+        function showAttendanceModal(cell, employee, dayIndex) {
+            const modal = document.querySelector('.modal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalInfo = document.getElementById('modalInfo');
+            const attendanceOptions = document.getElementById('attendanceOptions');
+
+            const date = new Date(new Date().getFullYear(), new Date().getMonth(), dayIndex + 1);
+            modalTitle.textContent = `Update Attendance for ${date.toDateString()}`;
+            modalInfo.textContent = `Employee: ${employee.name} | Department: ${employee.department}`;
+
+            attendanceOptions.innerHTML = '';
+            const options = ['P', 'WO', 'HD', 'URL', 'PL', 'CO', 'CL', 'SL', 'Attrit'];
+            options.forEach(option => {
+                const button = document.createElement('button');
+                button.textContent = option;
+                button.className = 'bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded';
+                button.addEventListener('click', () => {
+                    updateAttendance(cell, employee, dayIndex, option);
+                    toggleModal();
+                });
+                attendanceOptions.appendChild(button);
+            });
+
+            toggleModal();
+        }
+
+        function updateAttendance(cell, employee, dayIndex, newValue) {
+            cell.textContent = newValue;
+            cell.className = cell.className.replace(/status-\w+/, `status-${newValue}`);
+
+            const row = cell.parentElement;
+            const attendance = Array.from(row.children).slice(17).map(cell => ({ status: cell.textContent, color: cell.classList[cell.classList.length - 1] }));
+            const summary = summarizeAttendance(attendance);
+
+            row.children[6].textContent = summary.present;
+            row.children[7].textContent = summary.hd;
+            row.children[8].textContent = summary.url;
+            row.children[9].textContent = summary.pl;
+            row.children[10].textContent = summary.co;
+            row.children[11].textContent = summary.cl;
+            row.children[12].textContent = summary.sl;
+            row.children[13].textContent = summary.wo;
+            row.children[14].textContent = summary.attrit;
+            row.children[15].textContent = summary.plPercentage.toFixed(2) + '%';
+            row.children[16].textContent = summary.ulPercentage.toFixed(2) + '%';
+        }
+
+        function toggleModal() {
+            const modal = document.querySelector('.modal');
+            modal.classList.toggle('opacity-0');
+            modal.classList.toggle('pointer-events-none');
+            document.body.classList.toggle('modal-active');
+        }
+
+        document.getElementById('generateButton').addEventListener('click', generateRoster);
+        document.querySelector('.modal-overlay').addEventListener('click', toggleModal);
+        document.querySelector('.modal-close').addEventListener('click', toggleModal);
+    </script>
