@@ -179,42 +179,51 @@
             const attendance = [];
             const sundays = [];
             let weekOffs = 0;
-
+            let daysSinceLastWeekOff = 0;
+        
             for (let day = 1; day <= daysInMonth; day++) {
                 const date = new Date(new Date().getFullYear(), new Date().getMonth(), day);
                 const dayOfWeek = date.getDay();
-
+        
                 if (dayOfWeek === 0) {
                     sundays.push(day);
                 }
-
+        
                 if (employee.department === 'Pathways') {
-                    if (dayOfWeek === 0 && weekOffs < 6 && Math.random() < 0.7) {
-                        attendance.push('WO');
+                    if (daysSinceLastWeekOff === 6) {
+                        // Week off after 6 days of work
+                        attendance.push({ status: 'WO', color: 'status-WO' });
                         weekOffs++;
+                        daysSinceLastWeekOff = 0;
+                    } else if (dayOfWeek === 0 && weekOffs < 6 && Math.random() < 0.7) {
+                        attendance.push({ status: 'WO', color: 'status-WO' });
+                        weekOffs++;
+                        daysSinceLastWeekOff = 0;
                     } else if (weekOffs < 6 && Math.random() < 0.1) {
-                        attendance.push('WO');
+                        attendance.push({ status: 'WO', color: 'status-WO' });
                         weekOffs++;
+                        daysSinceLastWeekOff = 0;
                     } else {
-                        attendance.push('P');
+                        attendance.push({ status: 'P', color: 'status-P' });
+                        daysSinceLastWeekOff++;
                     }
                 } else if (employee.department === 'Oxford Direct') {
                     if (dayOfWeek === 0 || (dayOfWeek === 6 && weekOffs < 6)) {
-                        attendance.push('WO');
+                        attendance.push({ status: 'WO', color: 'status-WO' });
                         weekOffs++;
                     } else {
-                        attendance.push('P');
+                        attendance.push({ status: 'P', color: 'status-P' });
                     }
                 }
             }
-
+        
             if (employee.department === 'Oxford Direct') {
                 if (sundays.length === 5) {
                     const saturdayIndex = attendance.findIndex((status, index) => 
-                        new Date(new Date().getFullYear(), new Date().getMonth(), index + 1).getDay() === 6 && status === 'WO'
+                        new Date(new Date().getFullYear(), new Date().getMonth(), index + 1).getDay() === 6 && status.status === 'WO'
                     );
                     if (saturdayIndex !== -1) {
-                        attendance[saturdayIndex] = 'P';
+                        attendance[saturdayIndex] = { status: 'P', color: 'status-P' };
                     }
                 } else if (sundays.length === 4) {
                     const saturdays = attendance.reduce((acc, status, index) => {
@@ -226,15 +235,15 @@
                     
                     while (saturdays.length > 2) {
                         const randomIndex = Math.floor(Math.random() * saturdays.length);
-                        attendance[saturdays[randomIndex]] = 'P';
+                        attendance[saturdays[randomIndex]] = { status: 'P', color: 'status-P' };
                         saturdays.splice(randomIndex, 1);
                     }
                 }
             }
-
-            return attendance.map(status => ({ status, color: `status-${status}` }));
+        
+            return attendance;
         }
-
+    
         function summarizeAttendance(attendance) {
             const summary = {
                 present: 0, hd: 0, url: 0, pl: 0, co: 0, cl: 0, sl: 0, wo: 0, attrit: 0
