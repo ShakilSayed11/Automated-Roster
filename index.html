@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Automated Monthly Roster Generator</title>
+    <title>Color-Coded Enhanced Monthly Roster Generator</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
     <style>
         .roster-table {
@@ -47,7 +47,7 @@
 </head>
 <body class="bg-gray-100">
     <div class="container mx-auto px-4 py-8">
-        <h1 class="text-3xl font-bold mb-6 text-center text-gray-800">Automated Monthly Roster Generator - Beta</h1>
+        <h1 class="text-3xl font-bold mb-6 text-center text-gray-800">Enhanced Monthly Roster Generator</h1>
         <button id="generateButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mb-6">
             Generate Roster
         </button>
@@ -175,76 +175,66 @@
             });
         }
 
-function generateAttendance(employee, daysInMonth) {
-    const attendance = [];
-    const sundays = [];
-    let weekOffs = 0;
-    const maxWeekOffs = 6;
+        function generateAttendance(employee, daysInMonth) {
+            const attendance = [];
+            const sundays = [];
+            let weekOffs = 0;
 
-    // First, mark all days as working days
-    for (let day = 1; day <= daysInMonth; day++) {
-        const date = new Date(new Date().getFullYear(), new Date().getMonth(), day);
-        const dayOfWeek = date.getDay();
-        
-        if (dayOfWeek === 0) {
-            sundays.push(day);
-        }
-        
-        attendance.push({ status: 'P', color: 'status-P' });
-    }
+            for (let day = 1; day <= daysInMonth; day++) {
+                const date = new Date(new Date().getFullYear(), new Date().getMonth(), day);
+                const dayOfWeek = date.getDay();
 
-    if (employee.department === 'Pathways') {
-        // Allocate weekoffs for Sundays first (70% chance)
-        sundays.forEach(sunday => {
-            if (weekOffs < maxWeekOffs && Math.random() < 0.7) {
-                attendance[sunday - 1] = { status: 'WO', color: 'status-WO' };
-                weekOffs++;
-            }
-        });
-
-        // Distribute remaining weekoffs
-        while (weekOffs < maxWeekOffs) {
-            const randomDay = Math.floor(Math.random() * daysInMonth);
-            if (attendance[randomDay].status !== 'WO') {
-                attendance[randomDay] = { status: 'WO', color: 'status-WO' };
-                weekOffs++;
-            }
-        }
-    } else if (employee.department === 'Oxford Direct') {
-        // All Sundays are weekoffs
-        sundays.forEach(sunday => {
-            attendance[sunday - 1] = { status: 'WO', color: 'status-WO' };
-            weekOffs++;
-        });
-
-        // Allocate remaining weekoffs to Saturdays
-        for (let day = 1; day <= daysInMonth && weekOffs < maxWeekOffs; day++) {
-            const date = new Date(new Date().getFullYear(), new Date().getMonth(), day);
-            if (date.getDay() === 6) { // Saturday
-                attendance[day - 1] = { status: 'WO', color: 'status-WO' };
-                weekOffs++;
-            }
-        }
-
-        // Adjust for 5 Sunday months
-        if (sundays.length === 5) {
-            const saturdays = attendance.reduce((acc, status, index) => {
-                if (new Date(new Date().getFullYear(), new Date().getMonth(), index + 1).getDay() === 6 && status.status === 'WO') {
-                    acc.push(index);
+                if (dayOfWeek === 0) {
+                    sundays.push(day);
                 }
-                return acc;
-            }, []);
-            
-            if (saturdays.length > 1) {
-                const randomSaturday = saturdays[Math.floor(Math.random() * saturdays.length)];
-                attendance[randomSaturday] = { status: 'P', color: 'status-P' };
-            }
-        }
-    }
 
-    return attendance;
-}
-    
+                if (employee.department === 'Pathways') {
+                    if (dayOfWeek === 0 && weekOffs < 6 && Math.random() < 0.7) {
+                        attendance.push('WO');
+                        weekOffs++;
+                    } else if (weekOffs < 6 && Math.random() < 0.1) {
+                        attendance.push('WO');
+                        weekOffs++;
+                    } else {
+                        attendance.push('P');
+                    }
+                } else if (employee.department === 'Oxford Direct') {
+                    if (dayOfWeek === 0 || (dayOfWeek === 6 && weekOffs < 6)) {
+                        attendance.push('WO');
+                        weekOffs++;
+                    } else {
+                        attendance.push('P');
+                    }
+                }
+            }
+
+            if (employee.department === 'Oxford Direct') {
+                if (sundays.length === 5) {
+                    const saturdayIndex = attendance.findIndex((status, index) => 
+                        new Date(new Date().getFullYear(), new Date().getMonth(), index + 1).getDay() === 6 && status === 'WO'
+                    );
+                    if (saturdayIndex !== -1) {
+                        attendance[saturdayIndex] = 'P';
+                    }
+                } else if (sundays.length === 4) {
+                    const saturdays = attendance.reduce((acc, status, index) => {
+                        if (new Date(new Date().getFullYear(), new Date().getMonth(), index + 1).getDay() === 6) {
+                            acc.push(index);
+                        }
+                        return acc;
+                    }, []);
+                    
+                    while (saturdays.length > 2) {
+                        const randomIndex = Math.floor(Math.random() * saturdays.length);
+                        attendance[saturdays[randomIndex]] = 'P';
+                        saturdays.splice(randomIndex, 1);
+                    }
+                }
+            }
+
+            return attendance.map(status => ({ status, color: `status-${status}` }));
+        }
+
         function summarizeAttendance(attendance) {
             const summary = {
                 present: 0, hd: 0, url: 0, pl: 0, co: 0, cl: 0, sl: 0, wo: 0, attrit: 0
@@ -270,7 +260,6 @@ function generateAttendance(employee, daysInMonth) {
 
             return summary;
         }
-
 
         function showAttendanceModal(cell, employee, dayIndex) {
             const modal = document.querySelector('.modal');
