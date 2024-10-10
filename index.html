@@ -177,33 +177,42 @@
 
         function generateAttendance(employee, daysInMonth) {
             const attendance = [];
+            const sundays = [];
+            let weekOffs = 0;
             let workingDays = 0;
 
             for (let day = 1; day <= daysInMonth; day++) {
                 const date = new Date(new Date().getFullYear(), new Date().getMonth(), day);
                 const dayOfWeek = date.getDay();
 
+                if (dayOfWeek === 0) {
+                    sundays.push(day);
+                }
+
                 if (employee.department === 'Pathways') {
-                    if (workingDays === 6) {
+                    if (workingDays === 6 || (dayOfWeek === 0 && Math.random() < 0.7)) {
                         attendance.push({ status: 'WO', color: 'status-WO' });
+                        weekOffs++;
+                        workingDays = 0;
+                    } else if (weekOffs < 6 && Math.random() < 0.1) {
+                        attendance.push({ status: 'WO', color: 'status-WO' });
+                        weekOffs++;
                         workingDays = 0;
                     } else {
                         attendance.push({ status: 'P', color: 'status-P' });
                         workingDays++;
                     }
                 } else if (employee.department === 'Oxford Direct') {
-                    // Oxford Direct logic remains unchanged
-                    if (dayOfWeek === 0 || (dayOfWeek === 6 && attendance.filter(a => a.status === 'WO').length < 6)) {
+                    if (dayOfWeek === 0 || (dayOfWeek === 6 && weekOffs < 6)) {
                         attendance.push({ status: 'WO', color: 'status-WO' });
+                        weekOffs++;
                     } else {
                         attendance.push({ status: 'P', color: 'status-P' });
                     }
                 }
             }
 
-            // Oxford Direct adjustment for 5 Sundays remains unchanged
             if (employee.department === 'Oxford Direct') {
-                const sundays = attendance.filter((a, index) => new Date(new Date().getFullYear(), new Date().getMonth(), index + 1).getDay() === 0);
                 if (sundays.length === 5) {
                     const saturdayIndex = attendance.findIndex((status, index) => 
                         new Date(new Date().getFullYear(), new Date().getMonth(), index + 1).getDay() === 6 && status.status === 'WO'
@@ -229,7 +238,7 @@
 
             return attendance;
         }
-
+    
         function summarizeAttendance(attendance) {
             const summary = {
                 present: 0, hd: 0, url: 0, pl: 0, co: 0, cl: 0, sl: 0, wo: 0, attrit: 0
