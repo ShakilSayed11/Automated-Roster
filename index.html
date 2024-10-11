@@ -48,9 +48,28 @@
 <body class="bg-gray-100">
     <div class="container mx-auto px-4 py-8">
         <h1 class="text-3xl font-bold mb-6 text-center text-gray-800">Automated Monthly Roster Generator - Beta</h1>
-        <button id="generateButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mb-6">
-            Generate Roster
-        </button>
+        <div class="flex justify-center space-x-4 mb-6">
+            <select id="monthSelect" class="bg-white border border-gray-300 rounded-md px-4 py-2">
+                <option value="0">January</option>
+                <option value="1">February</option>
+                <option value="2">March</option>
+                <option value="3">April</option>
+                <option value="4">May</option>
+                <option value="5">June</option>
+                <option value="6">July</option>
+                <option value="7">August</option>
+                <option value="8">September</option>
+                <option value="9">October</option>
+                <option value="10">November</option>
+                <option value="11">December</option>
+            </select>
+            <select id="yearSelect" class="bg-white border border-gray-300 rounded-md px-4 py-2">
+                <!-- Will be populated with JavaScript -->
+            </select>
+            <button id="generateButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                Generate Roster
+            </button>
+        </div>
         <div class="overflow-x-auto bg-white shadow-md rounded">
             <table id="rosterTable" class="roster-table min-w-full">
                 <thead>
@@ -100,113 +119,137 @@
         </div>
     </div>
 
-<script>
-        const employees = [];
-        const departments = ['Pathways', 'Oxford Direct'];
+    <script>
+// roster-script.js
 
-        for (let i = 1; i <= 50; i++) {
-            const dept = i <= 25 ? 'Pathways' : 'Oxford Direct';
-            employees.push({
-                id: `E${i.toString().padStart(4, '0')}`,
-                department: dept,
-                center: dept === 'Pathways' ? 'Center A' : 'Center B',
-                designation: `Role ${i}`,
-                reporting: 'Manager Name',
-                name: `Employee ${i}`
-            });
-        }
+const employees = [];
+const departments = ['Pathways', 'Oxford Direct'];
 
-        function generateRoster() {
-            const rosterBody = document.getElementById('rosterBody');
-            rosterBody.innerHTML = '';
+for (let i = 1; i <= 50; i++) {
+    const dept = i <= 25 ? 'Pathways' : 'Oxford Direct';
+    employees.push({
+        id: `E${i.toString().padStart(4, '0')}`,
+        department: dept,
+        center: dept === 'Pathways' ? 'Center A' : 'Center B',
+        designation: `Role ${i}`,
+        reporting: 'Manager Name',
+        name: `Employee ${i}`
+    });
+}
 
-            const currentDate = new Date();
-            const year = currentDate.getFullYear();
-            const month = currentDate.getMonth();
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
+// Populate year select
+const currentYear = new Date().getFullYear();
+const yearSelect = document.getElementById('yearSelect');
+for (let year = currentYear - 5; year <= currentYear + 5; year++) {
+    const option = document.createElement('option');
+    option.value = year;
+    option.textContent = year;
+    if (year === currentYear) {
+        option.selected = true;
+    }
+    yearSelect.appendChild(option);
+}
 
-            const headerRow = document.createElement('tr');
-            headerRow.innerHTML = '<th class="px-4 py-2" colspan="17"></th>';
-            for (let day = 1; day <= daysInMonth; day++) {
-                const date = new Date(year, month, day);
-                const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-                headerRow.innerHTML += `<th class="px-4 py-2 ${isWeekend ? 'weekend' : ''}">${day}</th>`;
+// Set current month as default
+document.getElementById('monthSelect').value = new Date().getMonth();
+
+function generateRoster() {
+    const rosterBody = document.getElementById('rosterBody');
+    rosterBody.innerHTML = '';
+
+    const selectedMonth = parseInt(document.getElementById('monthSelect').value);
+    const selectedYear = parseInt(document.getElementById('yearSelect').value);
+    const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+
+    const headerRow = document.createElement('tr');
+    headerRow.innerHTML = '<th class="px-4 py-2" colspan="17"></th>';
+    for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(selectedYear, selectedMonth, day);
+        const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+        const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+        headerRow.innerHTML += `<th class="px-4 py-2 ${isWeekend ? 'weekend' : ''}">${day} - ${dayName}</th>`;
+    }
+    rosterTable.querySelector('thead').appendChild(headerRow);
+
+    employees.forEach(employee => {
+        const row = document.createElement('tr');
+        const attendance = generateAttendance(employee, daysInMonth, selectedYear, selectedMonth);
+        const summary = summarizeAttendance(attendance);
+
+        row.innerHTML = `
+            <td class="border px-4 py-2">${employee.id}</td>
+            <td class="border px-4 py-2">${employee.department}</td>
+            <td class="border px-4 py-2">${employee.center}</td>
+            <td class="border px-4 py-2">${employee.designation}</td>
+            <td class="border px-4 py-2">${employee.reporting}</td>
+            <td class="border px-4 py-2">${employee.name}</td>
+            <td class="border px-4 py-2">${summary.present}</td>
+            <td class="border px-4 py-2">${summary.hd}</td>
+            <td class="border px-4 py-2">${summary.url}</td>
+            <td class="border px-4 py-2">${summary.pl}</td>
+            <td class="border px-4 py-2">${summary.co}</td>
+            <td class="border px-4 py-2">${summary.cl}</td>
+            <td class="border px-4 py-2">${summary.sl}</td>
+            <td class="border px-4 py-2">${summary.wo}</td>
+            <td class="border px-4 py-2">${summary.attrit}</td>
+            <td class="border px-4 py-2">${summary.plPercentage.toFixed(2)}%</td>
+            <td class="border px-4 py-2">${summary.ulPercentage.toFixed(2)}%</td>
+        `;
+
+        attendance.forEach(({ status, color }, index) => {
+            const cell = document.createElement('td');
+            cell.textContent = status;
+            cell.classList.add('border', 'px-4', 'py-2', 'editable', color);
+            cell.addEventListener('click', () => showAttendanceModal(cell, employee, index));
+            const date = new Date(selectedYear, selectedMonth, index + 1);
+            if (date.getDay() === 0 || date.getDay() === 6) {
+                cell.classList.add('weekend');
             }
-            rosterTable.querySelector('thead').appendChild(headerRow);
+            row.appendChild(cell);
+        });
 
-            employees.forEach(employee => {
-                const row = document.createElement('tr');
-                const attendance = generateAttendance(employee, daysInMonth);
-                const summary = summarizeAttendance(attendance);
+        rosterBody.appendChild(row);
+    });
+}
 
-                row.innerHTML = `
-                    <td class="border px-4 py-2">${employee.id}</td>
-                    <td class="border px-4 py-2">${employee.department}</td>
-                    <td class="border px-4 py-2">${employee.center}</td>
-                    <td class="border px-4 py-2">${employee.designation}</td>
-                    <td class="border px-4 py-2">${employee.reporting}</td>
-                    <td class="border px-4 py-2">${employee.name}</td>
-                    <td class="border px-4 py-2">${summary.present}</td>
-                    <td class="border px-4 py-2">${summary.hd}</td>
-                    <td class="border px-4 py-2">${summary.url}</td>
-                    <td class="border px-4 py-2">${summary.pl}</td>
-                    <td class="border px-4 py-2">${summary.co}</td>
-                    <td class="border px-4 py-2">${summary.cl}</td>
-                    <td class="border px-4 py-2">${summary.sl}</td>
-                    <td class="border px-4 py-2">${summary.wo}</td>
-                    <td class="border px-4 py-2">${summary.attrit}</td>
-                    <td class="border px-4 py-2">${summary.plPercentage.toFixed(2)}%</td>
-                    <td class="border px-4 py-2">${summary.ulPercentage.toFixed(2)}%</td>
-                `;
-
-                attendance.forEach(({ status, color }, index) => {
-                    const cell = document.createElement('td');
-                    cell.textContent = status;
-                    cell.classList.add('border', 'px-4', 'py-2', 'editable', color);
-                    cell.addEventListener('click', () => showAttendanceModal(cell, employee, index));
-                    const date = new Date(year, month, index + 1);
-                    if (date.getDay() === 0 || date.getDay() === 6) {
-                        cell.classList.add('weekend');
-                    }
-                    row.appendChild(cell);
-                });
-
-                rosterBody.appendChild(row);
-            });
-        }
-
-function generateAttendance(employee, daysInMonth) {
+function generateAttendance(employee, daysInMonth, year, month) {
     const attendance = [];
     
     if (employee.department === 'Pathways') {
         let weekOffs = 0;
         let consecutiveWorkDays = 0;
         let doubleWeekOffsAllocated = 0;
+        let singleWeekOffsAllocated = 0;
 
         for (let day = 1; day <= daysInMonth; day++) {
-            if (weekOffs < 6 && (consecutiveWorkDays >= 6 || (day === 1 && Math.random() < 0.3))) {
-                // Allocate week off(s)
-                if (doubleWeekOffsAllocated < 2 && weekOffs <= 4 && day < daysInMonth - 1 && Math.random() < 0.5) {
+            if (weekOffs < 6) {
+                if (doubleWeekOffsAllocated < 2 && (consecutiveWorkDays >= 6 || (day <= 2 && Math.random() < 0.3))) {
                     // Allocate double week off
                     attendance.push({ status: 'WO', color: 'status-WO' });
                     attendance.push({ status: 'WO', color: 'status-WO' });
                     weekOffs += 2;
                     doubleWeekOffsAllocated++;
+                    consecutiveWorkDays = 0;
                     day++; // Skip next day as it's part of the double week off
-                } else {
+                } else if (singleWeekOffsAllocated < 2 && consecutiveWorkDays >= 6) {
                     // Allocate single week off
                     attendance.push({ status: 'WO', color: 'status-WO' });
                     weekOffs++;
+                    singleWeekOffsAllocated++;
+                    consecutiveWorkDays = 0;
+                } else {
+                    // Working day
+                    attendance.push({ status: 'P', color: 'status-P' });
+                    consecutiveWorkDays++;
                 }
-                consecutiveWorkDays = 0;
             } else {
-                // Working day
+                // All week offs allocated, fill remaining days with 'P'
                 attendance.push({ status: 'P', color: 'status-P' });
                 consecutiveWorkDays++;
             }
         }
 
-        // Distribute remaining week offs
+        // If we haven't allocated all week offs, try to distribute remaining ones
         while (weekOffs < 6) {
             let maxStretch = 0;
             let maxStretchIndex = -1;
@@ -227,8 +270,20 @@ function generateAttendance(employee, daysInMonth) {
             }
 
             if (maxStretchIndex !== -1) {
-                attendance[maxStretchIndex] = { status: 'WO', color: 'status-WO' };
-                weekOffs++;
+                if (doubleWeekOffsAllocated < 2 && weekOffs <= 4 && maxStretchIndex < attendance.length - 1) {
+                    // Allocate double week off
+                    attendance[maxStretchIndex] = { status: 'WO', color: 'status-WO' };
+                    attendance[maxStretchIndex + 1] = { status: 'WO', color: 'status-WO' };
+                    weekOffs += 2;
+                    doubleWeekOffsAllocated++;
+                } else if (singleWeekOffsAllocated < 2) {
+                    // Allocate single week off
+                    attendance[maxStretchIndex] = { status: 'WO', color: 'status-WO' };
+                    weekOffs++;
+                    singleWeekOffsAllocated++;
+                } else {
+                    break; // No more week offs to allocate
+                }
             } else {
                 break; // No more stretches to break
             }
@@ -238,7 +293,7 @@ function generateAttendance(employee, daysInMonth) {
         const sundays = [];
 
         for (let day = 1; day <= daysInMonth; day++) {
-            const date = new Date(new Date().getFullYear(), new Date().getMonth(), day);
+            const date = new Date(year, month, day);
             const dayOfWeek = date.getDay();
 
             if (dayOfWeek === 0) {
@@ -256,14 +311,14 @@ function generateAttendance(employee, daysInMonth) {
         // Adjust for months with 5 Sundays
         if (sundays.length === 5) {
             const saturdayIndex = attendance.findIndex((status, index) => 
-                new Date(new Date().getFullYear(), new Date().getMonth(), index + 1).getDay() === 6 && status.status === 'WO'
+                new Date(year, month, index + 1).getDay() === 6 && status.status === 'WO'
             );
             if (saturdayIndex !== -1) {
                 attendance[saturdayIndex] = { status: 'P', color: 'status-P' };
             }
         } else if (sundays.length === 4) {
             const saturdays = attendance.reduce((acc, status, index) => {
-                if (new Date(new Date().getFullYear(), new Date().getMonth(), index + 1).getDay() === 6 && status.status === 'WO') {
+                if (new Date(year, month, index + 1).getDay() === 6 && status.status === 'WO') {
                     acc.push(index);
                 }
                 return acc;
@@ -279,89 +334,92 @@ function generateAttendance(employee, daysInMonth) {
 
     return attendance;
 }
-    
-        function summarizeAttendance(attendance) {
-            const summary = {
-                present: 0, hd: 0, url: 0, pl: 0, co: 0, cl: 0, sl: 0, wo: 0, attrit: 0
-            };
 
-            attendance.forEach(({ status }) => {
-                switch(status) {
-                    case 'P': summary.present++; break;
-                    case 'WO': summary.wo++; break;
-                    case 'HD': summary.hd++; break;
-                    case 'URL': summary.url++; break;
-                    case 'PL': summary.pl++; break;
-                    case 'CO': summary.co++; break;
-                    case 'CL': summary.cl++; break;
-                    case 'SL': summary.sl++; break;
-                    case 'Attrit': summary.attrit++; break;
-                }
-            });
+function summarizeAttendance(attendance) {
+    const summary = {
+        present: 0, hd: 0, url: 0, pl: 0, co: 0, cl: 0, sl: 0, wo: 0, attrit: 0
+    };
 
-            const workingDays = attendance.length - summary.wo;
-            summary.plPercentage = (summary.present / workingDays) * 100;
-            summary.ulPercentage = 100 - summary.plPercentage;
-
-            return summary;
+    attendance.forEach(({ status }) => {
+        switch(status) {
+            case 'P': summary.present++; break;
+            case 'WO': summary.wo++; break;
+            case 'HD': summary.hd++; break;
+            case 'URL': summary.url++; break;
+            case 'PL': summary.pl++; break;
+            case 'CO': summary.co++; break;
+            case 'CL': summary.cl++; break;
+            case 'SL': summary.sl++; break;
+            case 'Attrit': summary.attrit++; break;
         }
+    });
 
+    const workingDays = attendance.length - summary.wo;
+    summary.plPercentage = (summary.present / workingDays) * 100;
+    summary.ulPercentage = 100 - summary.plPercentage;
 
-        function showAttendanceModal(cell, employee, dayIndex) {
-            const modal = document.querySelector('.modal');
-            const modalTitle = document.getElementById('modalTitle');
-            const modalInfo = document.getElementById('modalInfo');
-            const attendanceOptions = document.getElementById('attendanceOptions');
+    return summary;
+}
 
-            const date = new Date(new Date().getFullYear(), new Date().getMonth(), dayIndex + 1);
-            modalTitle.textContent = `Update Attendance for ${date.toDateString()}`;
-            modalInfo.textContent = `Employee: ${employee.name} | Department: ${employee.department}`;
+function showAttendanceModal(cell, employee, dayIndex) {
+    const modal = document.querySelector('.modal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalInfo = document.getElementById('modalInfo');
+    const attendanceOptions = document.getElementById('attendanceOptions');
 
-            attendanceOptions.innerHTML = '';
-            const options = ['P', 'WO', 'HD', 'URL', 'PL', 'CO', 'CL', 'SL', 'Attrit'];
-            options.forEach(option => {
-                const button = document.createElement('button');
-                button.textContent = option;
-                button.className = 'bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded';
-                button.addEventListener('click', () => {
-                    updateAttendance(cell, employee, dayIndex, option);
-                    toggleModal();
-                });
-                attendanceOptions.appendChild(button);
-            });
+    const selectedMonth = parseInt(document.getElementById('monthSelect').value);
+    const selectedYear = parseInt(document.getElementById('yearSelect').value);
+    const date = new Date(selectedYear, selectedMonth, dayIndex + 1);
+    modalTitle.textContent = `Update Attendance for ${date.toDateString()}`;
+    modalInfo.textContent = `Employee: ${employee.name} | Department: ${employee.department}`;
 
+    attendanceOptions.innerHTML = '';
+    const options = ['P', 'WO', 'HD', 'URL', 'PL', 'CO', 'CL', 'SL', 'Attrit'];
+    options.forEach(option => {
+        const button = document.createElement('button');
+        button.textContent = option;
+        button.className = 'bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded';
+        button.addEventListener('click', () => {
+            updateAttendance(cell, employee, dayIndex, option);
             toggleModal();
-        }
+        });
+        attendanceOptions.appendChild(button);
+    });
 
-        function updateAttendance(cell, employee, dayIndex, newValue) {
-            cell.textContent = newValue;
-            cell.className = cell.className.replace(/status-\w+/, `status-${newValue}`);
+    toggleModal();
+}
 
-            const row = cell.parentElement;
-            const attendance = Array.from(row.children).slice(17).map(cell => ({ status: cell.textContent, color: cell.classList[cell.classList.length - 1] }));
-            const summary = summarizeAttendance(attendance);
+function updateAttendance(cell, employee, dayIndex, newValue) {
+    cell.textContent = newValue;
+    cell.className = cell.className.replace(/status-\w+/, `status-${newValue}`);
 
-            row.children[6].textContent = summary.present;
-            row.children[7].textContent = summary.hd;
-            row.children[8].textContent = summary.url;
-            row.children[9].textContent = summary.pl;
-            row.children[10].textContent = summary.co;
-            row.children[11].textContent = summary.cl;
-            row.children[12].textContent = summary.sl;
-            row.children[13].textContent = summary.wo;
-            row.children[14].textContent = summary.attrit;
-            row.children[15].textContent = summary.plPercentage.toFixed(2) + '%';
-            row.children[16].textContent = summary.ulPercentage.toFixed(2) + '%';
-        }
+    const row = cell.parentElement;
+    const attendance = Array.from(row.children).slice(17).map(cell => ({ status: cell.textContent, color: cell.classList[cell.classList.length - 1] }));
+    const summary = summarizeAttendance(attendance);
 
-        function toggleModal() {
-            const modal = document.querySelector('.modal');
-            modal.classList.toggle('opacity-0');
-            modal.classList.toggle('pointer-events-none');
-            document.body.classList.toggle('modal-active');
-        }
+    row.children[6].textContent = summary.present;
+    row.children[7].textContent = summary.hd;
+    row.children[8].textContent = summary.url;
+    row.children[9].textContent = summary.pl;
+    row.children[10].textContent = summary.co;
+    row.children[11].textContent = summary.cl;
+    row.children[12].textContent = summary.sl;
+    row.children[13].textContent = summary.wo;
+    row.children[14].textContent = summary.attrit;
+    row.children[15].textContent = summary.plPercentage.toFixed(2) + '%';
+    row.children[16].textContent = summary.ulPercentage.toFixed(2) + '%';
+}
 
-        document.getElementById('generateButton').addEventListener('click', generateRoster);
-        document.querySelector('.modal-overlay').addEventListener('click', toggleModal);
-        document.querySelector('.modal-close').addEventListener('click', toggleModal);
+function toggleModal() {
+    const modal = document.querySelector('.modal');
+    modal.classList.toggle('opacity-0');
+    modal.classList.toggle('pointer-events-none');
+    document.body.classList.toggle('modal-active');
+}
+
+document.getElementById('generateButton').addEventListener('click', generateRoster);
+document.querySelector('.modal-overlay').addEventListener('click', toggleModal);
+document.querySelector('.modal-close').addEventListener('click', toggleModal);
     </script>
+</body>
+</html>
